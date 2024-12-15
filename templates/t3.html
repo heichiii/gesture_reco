@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gesture Recognition</title>
+</head>
+<body>
+    <video id="video" width="640" height="480" autoplay></video>
+    <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+    <img id="result-image" width="640" height="480" style="display: none;">
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const resultImage = document.getElementById('result-image');
+
+        // 获取用户摄像头
+        navigator.mediaDevices.getUserMedia({ video: true })
+         .then(function(stream) {
+                video.srcObject = stream;
+            })
+         .catch(function(err) {
+                console.error("Error accessing camera: ", err);
+            });
+
+        function captureFrame() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg');
+            fetch('/recognize/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ image: imageData.split(',')[1] })
+            })
+           .then(response => response.blob())
+           .then(blob => {
+                resultImage.src = URL.createObjectURL(blob);
+                resultImage.style.display = 'block';
+            })
+           .catch(error => console.error("Error sending image: ", error));
+        }
+
+        setInterval(captureFrame, 30);  // 每秒发送一帧
+    </script>
+</body>
+</html>

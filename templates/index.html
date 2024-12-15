@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Number Recognition</title>
+</head>
+<body>
+    <h1>Number Recognition</h1>
+    <div>
+        <video id="video" width="640" height="480" autoplay></video>
+    </div>
+    <div>
+        <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+    </div>
+    
+    <div id="result">
+    </div>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const resultDiv = document.getElementById('result');
+
+        // 请求用户摄像头访问权限
+        navigator.mediaDevices.getUserMedia({ video: true })
+           .then(stream => {
+                video.srcObject = stream;
+            })
+           .catch(error => {
+                console.error('Error accessing camera:', error);
+            });
+
+        function captureFrame() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg').split(',')[1];
+            // 发送图像数据到后端
+            fetch('/recognize/', {
+                method: 'POST',
+                body: JSON.stringify({ image: imageData }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+           .then(response => response.json())
+           .then(data => {
+                resultDiv.textContent = `Recognized Number: ${data.number}`;
+            })
+           .catch(error => {
+                console.error('Error sending image:', error);
+            });
+        }
+
+        // 定期捕获视频帧并发送到后端
+        setInterval(captureFrame, 500);
+    </script>
+</body>
+</html>

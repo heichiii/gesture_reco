@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Number Recognition</title>
+</head>
+<body>
+    <h1>Number Recognition</h1>
+    <div>
+        <video id="video" width="640" height="480" autoplay></video>
+    </div>
+    <div>
+        <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+    </div>
+    
+    <div id="result">
+    </div>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const resultDiv = document.getElementById('result');
+
+        // 请求用户摄像头访问权限
+        navigator.mediaDevices.getUserMedia({ video: true })
+         .then(stream => {
+                video.srcObject = stream;
+            })
+         .catch(error => {
+                console.error('Error accessing camera:', error);
+            });
+
+        function captureFrame() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg').split(',')[1];
+            // 发送图像数据到后端
+            fetch('/recognize/', {
+                method: 'POST',
+                body: JSON.stringify({ image: imageData }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+         .then(response => response.json())
+         .then(data => {
+                resultDiv.textContent = `Recognized Number: ${data.number}`;
+                // 假设后端返回的关键点数据在 data.keypoints 中，格式为 [{x: 10, y: 20}, {x: 50, y: 100},...]
+                if (data.keypoints) {
+                    drawKeypoints(data.keypoints);
+                }
+            })
+         .catch(error => {
+                console.error('Error sending image:', error);
+            });
+        }
+
+        function drawKeypoints(keypoints) {
+            // 清除之前绘制的关键点和连线
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // 绘制新的关键点
+            ctx.beginPath();
+            for (let point of keypoints) {
+                // 使用填充圆形绘制关键点
+                ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
+                ctx.fillStyle ='red';
+                ctx.fill();
+            }
+            // 定义关键点之间的连接关系，这里是示例连接，根据实际需求修改
+            const connections = [
+                [0, 1], [1, 2], [2, 3], [3, 4],
+                [0, 5], [5, 6], [6, 7], [7, 8],
+                [0, 9], [9, 10], [10, 11], [11, 12],
+                [0, 13], [13, 14], [14, 15], [15, 16],
+                [0, 17], [17, 18], [18, 19], [19, 20]
+            ];
+            // 绘制连线
+            for (let [index1, index2] of connections) {
+                ctx.beginPath();
+                ctx.moveTo(keypoints[index1].x, keypoints[index1].y);
+                ctx.lineTo(keypoints[index2].x, keypoints[index2].y);
+                ctx.strokeStyle = 'blue';
+                ctx.stroke();
+            }
+        }
+
+        // 定期捕获视频帧并发送到后端
+        setInterval(captureFrame, 100);
+    </script>
+</body>
+</html>
